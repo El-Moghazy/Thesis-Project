@@ -30,7 +30,7 @@ unsigned long time_now_ultrasonic = 0;
 int period_soil_temperature = 750;
 unsigned long time_now_soil_temperature = 0;
 
-int speed = 250;
+int speed = 150;
 int motorpin1 = 2 ;
 int motorpin2 = 4 ;
 int speedpin1 = 3 ;
@@ -39,10 +39,9 @@ int moisture_value = 0;
 
 const int pingPin_left = 10;
 const int pingPin_right = 11;
-
-int distance_ultrasonic_1 = 0;
-int distance_ultrasonic_2 = 0;
-
+int cm_right = 0;
+int cm_left = 0;
+boolean stopped = false;
 
 void setup(){
   pinMode(motorpin1, OUTPUT);
@@ -57,50 +56,79 @@ void setup(){
 }
 
 void loop(){
-
+  
+  char incomingByte = Serial.read();
+  if (incomingByte == 'z' || stopped == true) {
+      stop_robot();
+      stopped = true;
+  }
+    
+  if (stopped == false){
   if(millis() > time_now + period){
   moisture_value = map(moisture(), 1023, 0, 100, 0);
-  Serial.print("Moisture Sensor Value:");
-  Serial.println(moisture_value); 
 
   float temperature = soil_temperature(); //will take about 750ms to run
-  Serial.println(temperature);
 
   int* humidity_ptr = humidity();
-  
-  Serial.print(F("Humidity: "));
-  Serial.print(humidity_ptr[0]);
-  Serial.print(F("%  Temperature: "));
-  Serial.print(humidity_ptr[1]);
-  Serial.print(F("°C "));
-  Serial.print(humidity_ptr[2]);
-  Serial.println(F("°C "));
 
   time_now = millis();
   }
 
-  if(millis() > time_now_ultrasonic + period_ultrasonic){
-    distance_ultrasonic_1 = distance_ultrasonic(pingPin_left, "Left");
-    distance_ultrasonic_2 = distance_ultrasonic(pingPin_right, "Right");
-    time_now_ultrasonic = millis();
-  }
-  distance_reading = distance();
-  
-
-  if(moisture_value >= 70 && distance_reading >= 35 && distance_ultrasonic_1 >= 35 && distance_ultrasonic_2 > 35){
-    forward();
+  if(moisture_value >= 70){
+    seek_base();
   }
   else{
     stop_robot();
   }
-
-  Serial.println(distance());
-  if (distance() < 30 || distance_ultrasonic(pingPin_left, "Left") < 35 || distance_ultrasonic(pingPin_right, "Right") < 35 ) {
-    stop_robot();
+  
   }
-
- 
+  
  }
+
+
+void seek_base(){
+  
+      if ( distance() >= 35) {
+      forward();
+      delay(20);
+      follow_wall();
+    }
+
+    else if (distance() < 35)
+    {
+      left();
+      delay(800);
+
+
+
+    }
+}
+
+void follow_wall(){
+
+  
+    cm_right = distance_ultrasonic(pingPin_left, "Left");
+    cm_left  = distance_ultrasonic(pingPin_right, "Right");
+    
+    if (cm_right > 30 and cm_right <= 40){
+      right();
+      delay(50);
+
+
+    }
+
+    else if (cm_right < 25){
+      left();
+      delay(50);
+      
+    }
+
+    else if (cm_right > 45){
+      right();
+      delay(100);
+    }
+    
+}
 
 
 int moisture(){
@@ -274,11 +302,9 @@ int distance_ultrasonic(int pingPin, String sensor){
 
   // convert the time into a distance
   cm = microsecondsToCentimeters(duration);
-  
-  Serial.print(sensor);
+   
+  delay(100);
 
-  Serial.print("_Ultrasonic ");
-  
   return cm;
 }
 
