@@ -22,6 +22,10 @@ DHT dht(DHTPIN, DHTTYPE);
 int analogValue = 0;
 int period = 3000;
 unsigned long time_now = 0;
+unsigned long time_start = 0;
+unsigned long elapsed_time_to_base = 0;
+unsigned long time_start_origin = 0;
+unsigned long elapsed_time_to_origin = 0;
 
 int period_ultrasonic = 100;
 unsigned long time_now_ultrasonic = 0;
@@ -42,6 +46,7 @@ const int pingPin_right = 11;
 int cm_right = 0;
 int cm_left = 0;
 boolean stopped = false;
+String state = "";
 
 void setup(){
   pinMode(motorpin1, OUTPUT);
@@ -62,19 +67,30 @@ void loop(){
       stop_robot();
       stopped = true;
   }
-    
-  if (stopped == false){
-  if(millis() > time_now + period){
-  moisture_value = map(moisture(), 1023, 0, 100, 0);
-
-  float temperature = soil_temperature(); //will take about 750ms to run
-
-  int* humidity_ptr = humidity();
-
-  time_now = millis();
+    if (incomingByte == 't' && stopped == true) {
+      time_start_origin = millis();
+      state = "original";
+      backward();
+      delay(100);
+      left();
+      delay(2000);
+      stopped = false;
   }
+  
+  if (stopped == false && state != "original"){
+
+    if(millis() > time_now + period){
+      moisture_value = map(moisture(), 1023, 0, 100, 0);
+    
+      float temperature = soil_temperature(); //will take about 750ms to run
+    
+      int* humidity_ptr = humidity();
+    
+      time_now = millis();
+       }
 
   if(moisture_value >= 70){
+    time_start += (millis() - time_start);
     seek_base();
   }
   else{
@@ -82,16 +98,64 @@ void loop(){
   }
   
   }
+  else if (stopped == false && state == "original" ){
+    // TODO state should change once the robot reaches the original position of motion
+    elapsed_time_to_origin = millis() - time_start_origin;
+
+    Serial.print("base ");
+    Serial.println(elapsed_time_to_base);
+    Serial.print("origin ");
+    Serial.println(elapsed_time_to_origin);
+
+    if (elapsed_time_to_origin >= time_start){
+    right();
+    delay(2000);
+    stop_robot();
+    state = "base";
+    elapsed_time_to_origin = 0;
+    stopped = true;
+  }
+  else{
+    
+    seek_original_position();
+  }
+    
+  }
   
  }
 
-
-void seek_base(){
-  
+void seek_original_position(){
+    
       if ( distance() >= 35) {
       forward();
       delay(20);
-      follow_wall();
+      follow_wall("original");
+    }
+
+    else if (distance() < 35)
+    {
+      right();
+      delay(800);
+
+
+
+    }
+}
+
+
+
+
+
+//////////////////
+ 
+
+
+void seek_base(){
+
+      if ( distance() >= 35) {
+      forward();
+      delay(20);
+      follow_wall("base");
     }
 
     else if (distance() < 35)
@@ -104,9 +168,11 @@ void seek_base(){
     }
 }
 
-void follow_wall(){
+void follow_wall(String state_wall_following){
+  // takes state as an input which clarifies if it is seeking base or seeking the original position
 
-  
+
+  if( state_wall_following == "base"){
     cm_right = distance_ultrasonic(pingPin_left, "Left");
     cm_left  = distance_ultrasonic(pingPin_right, "Right");
     
@@ -127,6 +193,32 @@ void follow_wall(){
       right();
       delay(100);
     }
+
+  }
+
+    if( state_wall_following == "original"){
+    cm_right = distance_ultrasonic(pingPin_left, "Left");
+    cm_left  = distance_ultrasonic(pingPin_right, "Right");
+    
+    if (cm_left > 30 and cm_left <= 40){
+      left();
+      delay(50);
+
+
+    }
+
+    else if (cm_left < 25){
+      right();
+      delay(50);
+      
+    }
+
+    else if (cm_left > 45){
+      left();
+      delay(100);
+    }
+
+  }
     
 }
 
