@@ -1,4 +1,4 @@
-#include <OneWire.h> 
+#include <OneWire.h>
 #include "DHT.h"
 
 #include <Wire.h>
@@ -22,10 +22,12 @@ DHT dht(DHTPIN, DHTTYPE);
 int analogValue = 0;
 int period = 3000;
 unsigned long time_now = 0;
-unsigned long time_start = 0;
+unsigned long t = 0;
 unsigned long elapsed_time_to_base = 0;
-unsigned long time_start_origin = 0;
 unsigned long elapsed_time_to_origin = 0;
+unsigned long start_time_to_base = 0;
+unsigned long start_time_to_origin = 0;
+boolean to_base = false;
 
 int period_ultrasonic = 100;
 unsigned long time_now_ultrasonic = 0;
@@ -45,10 +47,12 @@ const int pingPin_left = 10;
 const int pingPin_right = 11;
 int cm_right = 0;
 int cm_left = 0;
-boolean stopped = false;
+boolean stopped_base = false;
+boolean stopped_origin = false;
+
 String state = "";
 
-void setup(){
+void setup() {
   pinMode(motorpin1, OUTPUT);
   pinMode(motorpin2, OUTPUT);
   pinMode(speedpin1, OUTPUT);
@@ -60,229 +64,229 @@ void setup(){
 
 }
 
-void loop(){
-  
+void loop() {
+
+  Serial.print("base ");
+  Serial.println(elapsed_time_to_base);
+  Serial.print("origin ");
+  Serial.println(elapsed_time_to_origin);
+
+
   char incomingByte = Serial.read();
-  if (incomingByte == 'z' || stopped == true) {
-      stop_robot();
-      stopped = true;
+  if (incomingByte == 'z') {
+    elapsed_time_to_base = millis() - start_time_to_base;
+    stopped_base = true;
+    to_base = false;
   }
-    if (incomingByte == 't' && stopped == true) {
-      time_start_origin = millis();
-      state = "original";
-      backward();
-      delay(100);
-      left();
-      delay(2000);
-      stopped = false;
-  }
-  
-  if (stopped == false && state != "original"){
-
-    if(millis() > time_now + period){
-      moisture_value = map(moisture(), 1023, 0, 100, 0);
-    
-      float temperature = soil_temperature(); //will take about 750ms to run
-    
-      int* humidity_ptr = humidity();
-    
-      time_now = millis();
-       }
-
-  if(moisture_value >= 70){
-    time_start += (millis() - time_start);
-    seek_base();
-  }
-  else{
+  if(stopped_base == true || stopped_origin == true){
     stop_robot();
   }
-  
-  }
-  else if (stopped == false && state == "original" ){
-    // TODO state should change once the robot reaches the original position of motion
-    elapsed_time_to_origin = millis() - time_start_origin;
-
-    Serial.print("base ");
-    Serial.println(elapsed_time_to_base);
-    Serial.print("origin ");
-    Serial.println(elapsed_time_to_origin);
-
-    if (elapsed_time_to_origin >= time_start){
-    right();
+  if (incomingByte == 't' && stopped_base == true) {
+    state = "original";
+    backward();
+    delay(100);
+    left();
     delay(2000);
-    stop_robot();
-    state = "base";
-    elapsed_time_to_origin = 0;
-    stopped = true;
-  }
-  else{
-    
-    seek_original_position();
-  }
-    
-  }
-  
- }
+    stopped_base = false;
+    start_time_to_origin = millis();
 
-void seek_original_position(){
-    
-      if ( distance() >= 35) {
-      forward();
-      delay(20);
-      follow_wall("original");
+  }
+
+  if (stopped_base == false && state != "original") {
+
+    if (millis() > time_now + period) {
+      moisture_value = map(moisture(), 1023, 0, 100, 0);
+
+      float temperature = soil_temperature(); //will take about 750ms to run
+
+      int* humidity_ptr = humidity();
+
+      time_now = millis();
     }
 
-    else if (distance() < 35)
-    {
+    if (moisture_value >= 70) {
+      if(to_base == false){
+        start_time_to_base = millis();
+      }
+      to_base = true;
+      seek_base();
+    }
+    else {
+      stop_robot();
+    }
+
+  }
+  else if (stopped_base == false && state == "original" ) {
+    // TODO state should change once the robot reaches the original position of motion
+    elapsed_time_to_origin = millis() - start_time_to_origin;
+    if (elapsed_time_to_origin >= elapsed_time_to_base) {
       right();
-      delay(800);
-
-
-
+      delay(2000);
+      stop_robot();
+      state = "";
+      elapsed_time_to_origin = 0;
+      stopped_base = false;
+      stopped_origin = true;
     }
+    else {
+      seek_original_position();
+    }
+
+  }
+
 }
 
+void seek_original_position() {
+
+  if ( distance() >= 35) {
+    forward();
+    delay(20);
+    follow_wall("original");
+  }
+
+  else if (distance() < 35)
+  {
+    right();
+    delay(800);
 
 
 
-
-//////////////////
- 
-
-
-void seek_base(){
-
-      if ( distance() >= 35) {
-      forward();
-      delay(20);
-      follow_wall("base");
-    }
-
-    else if (distance() < 35)
-    {
-      left();
-      delay(800);
-
-
-
-    }
+  }
 }
 
-void follow_wall(String state_wall_following){
+void seek_base() {
+
+  if ( distance() >= 35) {
+    forward();
+    delay(20);
+    follow_wall("base");
+  }
+
+  else if (distance() < 35)
+  {
+    left();
+    delay(800);
+
+
+
+  }
+}
+
+void follow_wall(String state_wall_following) {
   // takes state as an input which clarifies if it is seeking base or seeking the original position
 
 
-  if( state_wall_following == "base"){
+  if ( state_wall_following == "base") {
     cm_right = distance_ultrasonic(pingPin_left, "Left");
     cm_left  = distance_ultrasonic(pingPin_right, "Right");
-    
-    if (cm_right > 30 and cm_right <= 40){
+
+    if (cm_right > 30 and cm_right <= 40) {
       right();
       delay(50);
 
 
     }
 
-    else if (cm_right < 25){
+    else if (cm_right < 25) {
       left();
       delay(50);
-      
+
     }
 
-    else if (cm_right > 45){
+    else if (cm_right > 45) {
       right();
       delay(100);
     }
 
   }
 
-    if( state_wall_following == "original"){
+  if ( state_wall_following == "original") {
     cm_right = distance_ultrasonic(pingPin_left, "Left");
     cm_left  = distance_ultrasonic(pingPin_right, "Right");
-    
-    if (cm_left > 30 and cm_left <= 40){
+
+    if (cm_left > 30 and cm_left <= 40) {
       left();
       delay(50);
 
 
     }
 
-    else if (cm_left < 25){
+    else if (cm_left < 25) {
       right();
       delay(50);
-      
+
     }
 
-    else if (cm_left > 45){
+    else if (cm_left > 45) {
       left();
       delay(100);
     }
 
   }
-    
+
 }
 
 
-int moisture(){
- return analogRead(A0);
+int moisture() {
+  return analogRead(A0);
 }
 
-float soil_temperature(){
+float soil_temperature() {
   //returns the temperature from one DS18S20 in DEG Celsius
-float TemperatureSum = 0;
-byte data[12];
-byte addr[8];
+  float TemperatureSum = 0;
+  byte data[12];
+  byte addr[8];
 
-if ( !ds.search(addr)) {
-//no more sensors on chain, reset search
-ds.reset_search();
-return -1000;
+  if ( !ds.search(addr)) {
+    //no more sensors on chain, reset search
+    ds.reset_search();
+    return -1000;
+  }
+
+  if ( OneWire::crc8( addr, 7) != addr[7]) {
+    Serial.println("CRC is not valid!");
+    return -1000;
+  }
+
+  if ( addr[0] != 0x10 && addr[0] != 0x28) {
+    Serial.print("Device is not recognized");
+    return -1000;
+  }
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44, 1); // start conversion, with parasite power on at the end
+
+  if (millis() > time_now_soil_temperature + period_ultrasonic) {
+
+
+    byte present = ds.reset();
+    ds.select(addr);
+    ds.write(0xBE); // Read Scratchpad
+
+
+    for (int i = 0; i < 9; i++) { // we need 9 bytes
+      data[i] = ds.read();
+    }
+
+    ds.reset_search();
+
+    byte MSB = data[1];
+    byte LSB = data[0];
+
+    float tempRead = ((MSB << 8) | LSB); //using two's compliment
+    TemperatureSum = tempRead / 16;
+
+    time_now_soil_temperature = millis();
+  }
+
+  return TemperatureSum;
+
 }
 
-if ( OneWire::crc8( addr, 7) != addr[7]) {
-Serial.println("CRC is not valid!");
-return -1000;
-}
-
-if ( addr[0] != 0x10 && addr[0] != 0x28) {
-Serial.print("Device is not recognized");
-return -1000;
-}
-
-ds.reset();
-ds.select(addr);
-ds.write(0x44,1); // start conversion, with parasite power on at the end
-
-if(millis() > time_now_soil_temperature + period_ultrasonic){
 
 
-byte present = ds.reset();
-ds.select(addr); 
-ds.write(0xBE); // Read Scratchpad
-
-
-for (int i = 0; i < 9; i++) { // we need 9 bytes
-data[i] = ds.read();
-}
-
-ds.reset_search();
-
-byte MSB = data[1];
-byte LSB = data[0];
-
-float tempRead = ((MSB << 8) | LSB); //using two's compliment
-TemperatureSum = tempRead / 16;
-   
-time_now_soil_temperature = millis();
-}
-
-return TemperatureSum;
-
-}
-
-
-
-int* humidity(){
+int* humidity() {
   int* res = new int[3];
   // Reading temperature or humidity takes about 250 milliseconds!
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -298,7 +302,7 @@ int* humidity(){
 
   // Compute heat index in Celsius (isFahreheit = false)
   float hic = dht.computeHeatIndex(t, h, false);
-  
+
   res[0] = h;
   res[1] = t;
   res[2] = hic;
@@ -335,7 +339,7 @@ void left() {
   analogWrite(speedpin2, speed);
 }
 
-void stop_robot(){
+void stop_robot() {
   analogWrite(speedpin1, 0);
   analogWrite(speedpin2, 0);
 }
@@ -370,8 +374,8 @@ int distance() {
 }
 
 
-int distance_ultrasonic(int pingPin, String sensor){
-  
+int distance_ultrasonic(int pingPin, String sensor) {
+
   // establish variables for duration of the ping, and the distance result
   // in inches and centimeters:
   long duration, inches, cm;
@@ -379,7 +383,7 @@ int distance_ultrasonic(int pingPin, String sensor){
   // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
   // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
   pinMode(pingPin, OUTPUT);
-  
+
   digitalWrite(pingPin, LOW);
   delayMicroseconds(2);
   digitalWrite(pingPin, HIGH);
@@ -394,7 +398,7 @@ int distance_ultrasonic(int pingPin, String sensor){
 
   // convert the time into a distance
   cm = microsecondsToCentimeters(duration);
-   
+
   delay(100);
 
   return cm;
