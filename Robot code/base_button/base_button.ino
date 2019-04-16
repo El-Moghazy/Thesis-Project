@@ -25,6 +25,7 @@
 // constants won't change. They're used here to set pin numbers:
 const int buttonPin = 2;     // the number of the pushbutton pin
 const int prototypePin = 8;     // the number of the pushbutton pin
+const int pump = 9;     // the number of the pushbutton pin
 
 boolean stopped = false;
 // variables will change:
@@ -36,7 +37,10 @@ void setup() {
   Serial.begin(9600);
   // initialize the pushbutton pin as an input:
   pinMode(buttonPin, INPUT);
-  pinMode(buttonPin, INPUT);
+  pinMode(prototypePin, INPUT);
+  pinMode(pump, OUTPUT);
+  digitalWrite(pump, HIGH);
+
   
 }
 
@@ -50,13 +54,16 @@ void loop() {
     // send stop signal
     Serial.write("z");
     stopped = true;
+    digitalWrite(pump, LOW);
   }
 
-  if (prototypeState == HIGH){
+  if (prototypeState == HIGH && stopped == true){
     // send turn around signal
     Serial.write("t");
     delay(500);
     stopped = false;
+    digitalWrite(pump, HIGH);
+
   }
 
   
