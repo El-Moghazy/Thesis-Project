@@ -28,7 +28,6 @@ unsigned long elapsed_time_to_origin = 0;
 unsigned long start_time_to_base = 0;
 unsigned long start_time_to_origin = 0;
 boolean to_base = false;
-
 int period_ultrasonic = 100;
 unsigned long time_now_ultrasonic = 0;
 
@@ -49,6 +48,9 @@ int cm_right = 0;
 int cm_left = 0;
 boolean stopped_base = false;
 boolean stopped_origin = false;
+int raspberry_from_base = 12;
+
+int raspberry_to_base = 13;
 
 String state = "";
 
@@ -59,17 +61,25 @@ void setup() {
   pinMode(speedpin2, OUTPUT);
   Wire.begin(); // join i2c bus
 
+  pinMode(raspberry_to_base, OUTPUT);
+  pinMode(raspberry_from_base, OUTPUT);
+
   Serial.begin(9600);
   dht.begin();
+  digitalWrite(raspberry_to_base, LOW);
+  digitalWrite(raspberry_from_base, LOW);
+
 
 }
 
 void loop() {
 
-  Serial.print("base ");
-  Serial.println(elapsed_time_to_base);
-  Serial.print("origin ");
-  Serial.println(elapsed_time_to_origin);
+
+//  Serial.print("base ");
+//  Serial.println(elapsed_time_to_base);
+//  Serial.print("origin ");
+//  Serial.println(elapsed_time_to_origin);
+
 
 
   char incomingByte = Serial.read();
@@ -82,6 +92,10 @@ void loop() {
     stop_robot();
   }
   if (incomingByte == 't' && stopped_base == true) {
+    digitalWrite(raspberry_from_base, HIGH);
+    delay(500);
+    digitalWrite(raspberry_from_base, LOW);
+
     state = "original";
     backward();
     delay(100);
@@ -97,6 +111,7 @@ void loop() {
     if (millis() > time_now + period) {
       moisture_value = map(moisture(), 1023, 0, 100, 0);
 
+
       float temperature = soil_temperature(); //will take about 750ms to run
 
       int* humidity_ptr = humidity();
@@ -106,6 +121,11 @@ void loop() {
 
     if (moisture_value >= 70) {
       if(to_base == false){
+        digitalWrite(raspberry_to_base, HIGH);
+        delay(500);
+        digitalWrite(raspberry_to_base, LOW);
+        Serial.println("Here");
+
         start_time_to_base = millis();
       }
       to_base = true;
@@ -228,7 +248,7 @@ void follow_wall(String state_wall_following) {
 
 
 int moisture() {
-  return analogRead(A0);
+  return analogRead(A1);
 }
 
 float soil_temperature() {
