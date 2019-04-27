@@ -46,7 +46,7 @@ void loop() {
     digitalWrite(pump, HIGH);
   }
 
-  Serial.println(distance_ultrasonic());
+//  Serial.println(distance_ultrasonic());
 
   if(distance_ultrasonic() <= 13){
     digitalWrite(buzzer, LOW);

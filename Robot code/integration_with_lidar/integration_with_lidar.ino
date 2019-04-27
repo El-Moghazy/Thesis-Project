@@ -49,8 +49,9 @@ int cm_left = 0;
 boolean stopped_base = false;
 boolean stopped_origin = false;
 int raspberry_from_base = 12;
-
 int raspberry_to_base = 13;
+
+char incomingByte = "";
 
 String state = "";
 
@@ -66,8 +67,6 @@ void setup() {
 
   Serial.begin(9600);
   dht.begin();
-  digitalWrite(raspberry_to_base, LOW);
-  digitalWrite(raspberry_from_base, LOW);
 
 
 }
@@ -80,9 +79,7 @@ void loop() {
 //  Serial.print("origin ");
 //  Serial.println(elapsed_time_to_origin);
 
-
-
-  char incomingByte = Serial.read();
+  incomingByte = Serial.read();
   if (incomingByte == 'z') {
     elapsed_time_to_base = millis() - start_time_to_base;
     stopped_base = true;
@@ -124,7 +121,7 @@ void loop() {
         digitalWrite(raspberry_to_base, HIGH);
         delay(500);
         digitalWrite(raspberry_to_base, LOW);
-        Serial.println("Here");
+//        Serial.println(moisture_value);
 
         start_time_to_base = millis();
       }
