@@ -11,6 +11,9 @@ int buttonState = 0;         // variable for reading the pushbutton status
 int prototypeState = 0;         // variable for reading the pushbutton status
 const int pingPin = 10;
 const int buzzer = 7;
+char incomingByte = "";
+
+
 
 void setup() {
   
@@ -37,10 +40,9 @@ void loop() {
     stopped = true;
     digitalWrite(pump, LOW);
   }
-
-  if (prototypeState == HIGH && stopped == true){
+  incomingByte = Serial.read();
+  if (incomingByte == 't' && stopped == true){
     // send turn around signal
-    Serial.write("t");
     delay(500);
     stopped = false;
     digitalWrite(pump, HIGH);

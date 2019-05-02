@@ -74,10 +74,10 @@ void setup() {
 void loop() {
 
 
-//  Serial.print("base ");
-//  Serial.println(elapsed_time_to_base);
-//  Serial.print("origin ");
-//  Serial.println(elapsed_time_to_origin);
+  //  Serial.print("base ");
+  //  Serial.println(elapsed_time_to_base);
+  //  Serial.print("origin ");
+  //  Serial.println(elapsed_time_to_origin);
 
   incomingByte = Serial.read();
   if (incomingByte == 'z') {
@@ -85,10 +85,12 @@ void loop() {
     stopped_base = true;
     to_base = false;
   }
-  if(stopped_base == true || stopped_origin == true){
+  if (stopped_base == true || stopped_origin == true) {
+
     stop_robot();
   }
-  if (incomingByte == 't' && stopped_base == true) {
+  if ( map(moisture(), 1023, 0, 100, 0) <= 50 && stopped_base == true) {
+    Serial.write("t");
     digitalWrite(raspberry_from_base, HIGH);
     delay(500);
     digitalWrite(raspberry_from_base, LOW);
@@ -117,11 +119,11 @@ void loop() {
     }
 
     if (moisture_value >= 70) {
-      if(to_base == false){
+      if (to_base == false) {
         digitalWrite(raspberry_to_base, HIGH);
         delay(500);
         digitalWrite(raspberry_to_base, LOW);
-//        Serial.println(moisture_value);
+        //        Serial.println(moisture_value);
 
         start_time_to_base = millis();
       }
