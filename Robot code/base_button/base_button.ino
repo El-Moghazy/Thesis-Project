@@ -3,66 +3,95 @@
 // constants won't change. They're used here to set pin numbers:
 const int buttonPin = 2;     // the number of the pushbutton pin
 const int prototypePin = 8;     // the number of the pushbutton pin
-const int pump = 9;     // the number of the pushbutton pin
-
+const int pump = 9;
+const int lamp = 11;
+boolean light = false;
 boolean stopped = false;
 // variables will change:
 int buttonState = 0;         // variable for reading the pushbutton status
 int prototypeState = 0;         // variable for reading the pushbutton status
 const int pingPin = 10;
 const int buzzer = 7;
-char incomingByte = "";
+char incomingByte = ' ';
 
 
 
 void setup() {
-  
+
   Serial.begin(9600);
   // initialize the pushbutton pin as an input:
   pinMode(buttonPin, INPUT);
   pinMode(prototypePin, INPUT);
   pinMode(buzzer, OUTPUT);
   pinMode(pump, OUTPUT);
-  digitalWrite(pump, HIGH);
+  pinMode(lamp, OUTPUT);
 
-  
+  digitalWrite(pump, HIGH);
+  digitalWrite(lamp, HIGH);
+
+
 }
 
 void loop() {
+  //  Serial.println(light);
+
   // read the state of the pushbutton value:
   buttonState = digitalRead(buttonPin);
   prototypeState = digitalRead(prototypePin);
 
+  if (Serial.available()) {
+    incomingByte = Serial.read();
+    Serial.println(incomingByte);
+  }
+  if (incomingByte == 'l') {
+    light = true;
+  }
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
   if (buttonState == HIGH && stopped == false) {
+
+    if (light) {
+      digitalWrite(lamp, LOW);
+    }
+
     // send stop signal
     Serial.write("z");
+
+
     stopped = true;
-    digitalWrite(pump, LOW);
+
+    if (!light) {
+      digitalWrite(pump, LOW);
+    }
   }
-  incomingByte = Serial.read();
-  if (incomingByte == 't' && stopped == true){
+  if (incomingByte == 'd') {
+    digitalWrite(lamp, HIGH);
+    light = false;
+    stopped = false;
+
+  }
+
+  if (incomingByte == 't' && stopped == true) {
     // send turn around signal
     delay(500);
     stopped = false;
     digitalWrite(pump, HIGH);
   }
 
-//  Serial.println(distance_ultrasonic());
+  //  Serial.println(distance_ultrasonic());
 
-  if(distance_ultrasonic() <= 13){
+  if (distance_ultrasonic() <= 13) {
     digitalWrite(buzzer, LOW);
     // lamp red
   }
-  else if(distance_ultrasonic() <= 20){
+  else if (distance_ultrasonic() <= 20) {
     digitalWrite(buzzer, LOW);
     // lamp yellow
   }
-  else{
+  else {
     digitalWrite(buzzer, HIGH);
     // lamp green
   }
-  
+
 }
 
 

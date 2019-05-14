@@ -8,6 +8,18 @@
 #define    RegisterHighLowB    0x8f          // Register to get both High and Low bytes in 1 call.
 int reading = 0;
 int distance_reading = 0;
+int light_value_total = 108000;
+//Delete before usage
+//int light_value_total = 10000;
+
+int light_value_sensor = 0;
+int light_value_difference = 0;
+const int light_threshold = 18000;
+/////Delete before usage
+//const int light_threshold = 100;
+
+unsigned long time_light_start = 0;
+
 
 int DS18S20_Pin = 9;  //DS18S20 Signal pin on digital 9
 //Temperature chip i/o
@@ -48,6 +60,7 @@ int cm_right = 0;
 int cm_left = 0;
 boolean stopped_base = false;
 boolean stopped_origin = false;
+boolean light = false;
 int raspberry_from_base = 12;
 int raspberry_to_base = 13;
 
@@ -67,13 +80,25 @@ void setup() {
 
   Serial.begin(9600);
   dht.begin();
-
-
+  time_light_start = millis();
 }
 
 void loop() {
 
+//  Serial.println(map(analogRead(A1), 1023, 0, 100, 0));
+  if((millis() - time_light_start >= 86400000) && light == false){
+//           Serial.println(light);
+//           Serial.println(light_value_total);
+//           Serial.println(light_threshold);
+//           Serial.println("/////////////////////////////////");
 
+    if(light_value_sensor  < light_value_total - light_threshold){
+//      Serial.println("Here");
+      light_value_difference = (light_value_total - light_value_sensor);
+      light = true;
+    }
+    
+  }
   //  Serial.print("base ");
   //  Serial.println(elapsed_time_to_base);
   //  Serial.print("origin ");
@@ -84,11 +109,32 @@ void loop() {
     elapsed_time_to_base = millis() - start_time_to_base;
     stopped_base = true;
     to_base = false;
+    time_light_start = millis();
   }
   if (stopped_base == true || stopped_origin == true) {
 
     stop_robot();
+
+    if (light && stopped_base == true){ // keep the robot idle till it gets the light it needs
+        delay(light_value_difference);
+        // reinitiate the light difference
+        light_value_difference = 0;
+        // reset the flag
+        Serial.write("d");
+        light_value_sensor = 0;
+        state = "original";
+        backward();
+        delay(100);
+        left();
+        delay(2000);
+        stopped_base = false;
+        light = false;
+        start_time_to_origin = millis();
+}
+
   }
+
+
   if ( map(moisture(), 1023, 0, 100, 0) <= 50 && stopped_base == true) {
     Serial.write("t");
     digitalWrite(raspberry_from_base, HIGH);
@@ -111,22 +157,36 @@ void loop() {
       moisture_value = map(moisture(), 1023, 0, 100, 0);
 
 
-      float temperature = soil_temperature(); //will take about 750ms to run
+//      float temperature = soil_temperature(); //will take about 750ms to run
+//
+//      int* humidity_ptr = humidity();
 
-      int* humidity_ptr = humidity();
+      light_value_sensor += map(analogRead(A0), 1023, 0, 50, 0);
+                        
 
       time_now = millis();
     }
 
-    if (moisture_value >= 70) {
+    if (moisture_value >= 70 || light == true) {
+      
       if (to_base == false) {
+        // this means that the robot just started going to the base and didn't change the flag yet
+        if(!light){
         digitalWrite(raspberry_to_base, HIGH);
         delay(500);
         digitalWrite(raspberry_to_base, LOW);
+        }
+        else{
+         
+//          Serial.println((light_value_difference/3600000));
+          Serial.write("l");          
+        }
+        
         //        Serial.println(moisture_value);
 
         start_time_to_base = millis();
       }
+      
       to_base = true;
       seek_base();
     }
@@ -135,7 +195,7 @@ void loop() {
     }
 
   }
-  else if (stopped_base == false && state == "original" ) {
+  else if (stopped_base == false && state == "original") {
     // TODO state should change once the robot reaches the original position of motion
     elapsed_time_to_origin = millis() - start_time_to_origin;
     if (elapsed_time_to_origin >= elapsed_time_to_base) {
@@ -167,9 +227,6 @@ void seek_original_position() {
   {
     right();
     delay(800);
-
-
-
   }
 }
 
@@ -185,9 +242,6 @@ void seek_base() {
   {
     left();
     delay(800);
-
-
-
   }
 }
 
@@ -202,21 +256,17 @@ void follow_wall(String state_wall_following) {
     if (cm_right > 30 and cm_right <= 40) {
       right();
       delay(50);
-
-
     }
 
     else if (cm_right < 25) {
       left();
       delay(50);
-
     }
 
     else if (cm_right > 45) {
       right();
       delay(100);
     }
-
   }
 
   if ( state_wall_following == "original") {
